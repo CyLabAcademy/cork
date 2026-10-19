@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CyLabAcademy/challenge-orchestrator/cork"
+	"github.com/CyLabAcademy/cork/cork"
 )
 
 // handOverPayload is a challenge as this plane hands one over: two builds,

@@ -5,7 +5,7 @@ import (
 	"slices"
 	"sort"
 
-	"github.com/CyLabAcademy/challenge-orchestrator/cork"
+	"github.com/CyLabAcademy/cork/cork"
 )
 
 // A route is one orchestrator and the schemas it serves. Schemas are grouped

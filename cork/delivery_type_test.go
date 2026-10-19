@@ -3,7 +3,7 @@ package cork
 import (
 	"testing"
 
-	"github.com/CyLabAcademy/challenge-orchestrator/cork/dockerfiles"
+	"github.com/CyLabAcademy/cork/cork/dockerfiles"
 )
 
 // TestDeriveDeliveryType covers the single source of truth for delivery-type

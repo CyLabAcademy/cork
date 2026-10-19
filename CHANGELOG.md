@@ -300,7 +300,7 @@ permanent and empty. This is the first tag carrying binaries.
 
 The first release under the cork name.
 
-cork is a fork of [cmgr](https://github.com/picoCTF/cmgr), the challenge manager
+cork is a fork of [cmgr](https://github.com/CyLabAcademy/cmgr), the challenge manager
 from the US Army Cyber Institute, rebuilt around one thing cmgr could not do:
 run a CTF across many hosts. cmgr holds a single connection to a single docker
 API, which caps a deployment at one box. cork places challenges across a fleet of
@@ -373,7 +373,7 @@ identity, which is deployed and would have to be reissued.
   orchestrator on an external build plane ignores `CORK_ARTIFACT_DIR` and says so
   at startup. **This is the one breaking change for an existing deployment.**
 - **The challenge development commands.** No `test`, `playtest` or `check`, and
-  no solver framework behind them. Use [cmgr](https://github.com/picoCTF/cmgr)
+  no solver framework behind them. Use [cmgr](https://github.com/CyLabAcademy/cmgr)
   or PCM to write and debug challenges; cork reads what they produce.
 - **Telemetry**, now its own repository:
   [cork-telemetry](https://github.com/CyLabAcademy/cork-telemetry).
@@ -386,7 +386,7 @@ and the same tarball is published under the pre-rename
 scheduled for removal in **1.2.0**.
 
 `CORK_ARTIFACT_DIR` is the one setting another program reads by its old name:
-[cmgr-artifact-server](https://github.com/picoCTF/cmgr-artifact-server) looks up
+[cmgr-artifact-server](https://github.com/CyLabAcademy/cmgr-artifact-server) looks up
 `CMGR_ARTIFACT_DIR`. Setting only that name keeps both working today; once the
 fallback goes, a build plane needs both.
 
@@ -420,11 +420,11 @@ fallback goes, a build plane needs both.
 4. A single-host deployment needs no build plane: leave `CORK_BUILD_PLANE` unset
    and `corkd` builds on its own docker daemon, as cmgr did.
 
-[1.3.0]: https://github.com/CyLabAcademy/challenge-orchestrator/releases/tag/v1.3.0
-[1.2.1]: https://github.com/CyLabAcademy/challenge-orchestrator/releases/tag/v1.2.1
-[1.2.0]: https://github.com/CyLabAcademy/challenge-orchestrator/releases/tag/v1.2.0
-[1.1.2]: https://github.com/CyLabAcademy/challenge-orchestrator/releases/tag/v1.1.2
-[1.1.1]: https://github.com/CyLabAcademy/challenge-orchestrator/releases/tag/v1.1.1
-[1.1.0]: https://github.com/CyLabAcademy/challenge-orchestrator/releases/tag/v1.1.0
-[1.0.1]: https://github.com/CyLabAcademy/challenge-orchestrator/releases/tag/v1.0.1
-[1.0.0]: https://github.com/CyLabAcademy/challenge-orchestrator/releases/tag/v1.0.0
+[1.3.0]: https://github.com/CyLabAcademy/cork/releases/tag/v1.3.0
+[1.2.1]: https://github.com/CyLabAcademy/cork/releases/tag/v1.2.1
+[1.2.0]: https://github.com/CyLabAcademy/cork/releases/tag/v1.2.0
+[1.1.2]: https://github.com/CyLabAcademy/cork/releases/tag/v1.1.2
+[1.1.1]: https://github.com/CyLabAcademy/cork/releases/tag/v1.1.1
+[1.1.0]: https://github.com/CyLabAcademy/cork/releases/tag/v1.1.0
+[1.0.1]: https://github.com/CyLabAcademy/cork/releases/tag/v1.0.1
+[1.0.0]: https://github.com/CyLabAcademy/cork/releases/tag/v1.0.0

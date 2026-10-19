@@ -30,7 +30,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/CyLabAcademy/challenge-orchestrator/cork"
+	"github.com/CyLabAcademy/cork/cork"
 )
 
 const (

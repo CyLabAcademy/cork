@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/CyLabAcademy/challenge-orchestrator/cork"
+	"github.com/CyLabAcademy/cork/cork"
 	"go.yaml.in/yaml/v3"
 )
 

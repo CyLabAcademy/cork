@@ -1,4 +1,4 @@
-module github.com/CyLabAcademy/challenge-orchestrator
+module github.com/CyLabAcademy/cork
 
 go 1.26.0
 
