@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CyLabAcademy/challenge-orchestrator/cork"
+	"github.com/CyLabAcademy/cork/cork"
 )
 
 // removeSchemaCommand takes a schema out of service for good: the

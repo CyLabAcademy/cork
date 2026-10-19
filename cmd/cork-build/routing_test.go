@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/CyLabAcademy/challenge-orchestrator/cork"
+	"github.com/CyLabAcademy/cork/cork"
 )
 
 func routedSchema(name, destination, format string, challenges map[cork.ChallengeId][]int) *cork.Schema {

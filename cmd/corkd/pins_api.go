@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/CyLabAcademy/challenge-orchestrator/cork"
+	"github.com/CyLabAcademy/cork/cork"
 )
 
 // pinsHandler serves the base image pins (see cork/basepins.go). GET reports

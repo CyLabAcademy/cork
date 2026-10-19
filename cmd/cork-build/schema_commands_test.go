@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CyLabAcademy/challenge-orchestrator/cork"
+	"github.com/CyLabAcademy/cork/cork"
 )
 
 // takenRequest is what an orchestrator saw.

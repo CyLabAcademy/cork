@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CyLabAcademy/challenge-orchestrator/cork"
+	"github.com/CyLabAcademy/cork/cork"
 )
 
 func writeFile(t *testing.T, name, content string) string {

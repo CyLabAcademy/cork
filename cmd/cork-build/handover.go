@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CyLabAcademy/challenge-orchestrator/cork"
+	"github.com/CyLabAcademy/cork/cork"
 )
 
 // serverProbeTimeout bounds the one question asked of an orchestrator before

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/CyLabAcademy/challenge-orchestrator/cork"
+	"github.com/CyLabAcademy/cork/cork"
 )
 
 // The response code is a contract the platform reads: a 503 tells a caller to

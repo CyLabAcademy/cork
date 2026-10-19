@@ -18,7 +18,7 @@ Cork accomplishes these following goals
 
 Cmgr produced two binaries: cmgr, which is the challenge development tool, and cmgrd, the challenge hosting daemon. Both relied on the cmgr go module, shared between both. Unfortunately, this is not a flexible or extensible framework, as changes to the daemon will impact the challenge development tool. Thus, the decision was made to separate the two functions.
 
-Challenge development capabilities remain with [cmgr](https://github.com/picoCTF/cmgr) as well as PCM. Cork is compatible with any challenge files and builds compatible with cmgr.
+Challenge development capabilities remain with [cmgr](https://github.com/CyLabAcademy/cmgr) as well as PCM. Cork is compatible with any challenge files and builds compatible with cmgr.
 
 ### The shape of a deployment
 
@@ -87,7 +87,7 @@ The orchestrator builds with BuildKit, pins its base images by digest, and publi
 
 ## Setup
 
-There is no quickstart. This product is meant for deployment in production, not testing. If you're a challenge developer, please follow the readme in [cmgr](https://github.com/picoCTF/cmgr) instead.
+There is no quickstart. This product is meant for deployment in production, not testing. If you're a challenge developer, please follow the readme in [cmgr](https://github.com/CyLabAcademy/cmgr) instead.
 
 **One box works, and is not what this is for.** Leave `CORK_BUILD_PLANE`
 unset and `corkd` builds on its own docker daemon and runs what it builds —
@@ -106,7 +106,7 @@ dropped cmgr's development commands along with the `cmgr` binary: there is
 no `test`, `playtest` or `check`, and no solver framework behind them. It
 wants a docker daemon it can push from, and the multi-host shape wants two
 CAs and five certificates before anything starts. If you are writing or
-debugging a challenge, use [cmgr](https://github.com/picoCTF/cmgr) or PCM —
+debugging a challenge, use [cmgr](https://github.com/CyLabAcademy/cmgr) or PCM —
 cork is compatible with what they produce, and reads the same challenge files.
 
 To see the whole fleet run on one machine, `e2e/` holds a docker compose simulation of it (orchestrator, build daemon, registry, two workers with telemetry, real PKI) plus a scenario that drives the launch sequence through corkd and checks every box; see [e2e/README.md](e2e/README.md).
@@ -474,7 +474,7 @@ it; on an external build plane they are refused for that reason.
 
 Every setting also answers to its pre-rename `CMGR_` name (`CMGR_DB` for `CORK_DB`, and so on), read when the `CORK_` name is unset, and `cork` reads `CMGRD_SERVER` when `CORK_SERVER` is unset. corkd lists the `CMGR_` names it finds at startup. The old names go away two minor releases after the rename, together with the binary aliases. `CORK_DESTINATIONS` arrived with the build plane under that name and has no older spelling.
 
-`CORK_ARTIFACT_DIR` is the one setting another program reads by its old name: [cmgr-artifact-server](https://github.com/picoCTF/cmgr-artifact-server), which publishes the bundles a build plane writes, looks up `CMGR_ARTIFACT_DIR`. Setting only that name keeps both working today; once the fallback is dropped the build plane needs both.
+`CORK_ARTIFACT_DIR` is the one setting another program reads by its old name: [cmgr-artifact-server](https://github.com/CyLabAcademy/cmgr-artifact-server), which publishes the bundles a build plane writes, looks up `CMGR_ARTIFACT_DIR`. Setting only that name keeps both working today; once the fallback is dropped the build plane needs both.
 
 | Variable                 | Meaning                                                                                                                            | Default                                                                  |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
@@ -547,7 +547,7 @@ from the other role's is the usual way it happens.
 This repo is a fork of [ArmyCyberInstitute/cmgr](https://github.com/ArmyCyberInstitute/cmgr) with
 customizations to support our continued usage of cmgr at [picoCTF](https://picoctf.org/).
 
-For specific details regarding changes from the upstream project, see the [release notes](https://github.com/picoCTF/cmgr/releases).
+For specific details regarding changes from the upstream project, see the [release notes](https://github.com/CyLabAcademy/cmgr/releases).
 
 ## Introduction
 
@@ -569,8 +569,8 @@ identify permissions and other errors and is highly recommended for the first
 time you use `cmgr` on a system.
 
 ```sh
-wget https://github.com/picoCTF/cmgr/releases/latest/download/examples.tar.gz
-wget https://github.com/picoCTF/cmgr/releases/latest/download/cmgr_`uname -s | tr '[:upper:]' '[:lower:]'`_amd64.tar.gz
+wget https://github.com/CyLabAcademy/cmgr/releases/latest/download/examples.tar.gz
+wget https://github.com/CyLabAcademy/cmgr/releases/latest/download/cmgr_`uname -s | tr '[:upper:]' '[:lower:]'`_amd64.tar.gz
 tar xzvf examples.tar.gz
 cd examples
 tar xzvf ../cmgr_`uname -s | tr '[:upper:]' '[:lower:]'`_amd64.tar.gz
@@ -771,7 +771,7 @@ _cgo_ enabled for at least the initial build where the _sqlite3_ driver is
 built and installed.  To get started, you can run:
 
 ```sh
-git clone https://github.com/CyLabAcademy/challenge-orchestrator
+git clone https://github.com/CyLabAcademy/cork
 cd challenge-orchestrator
 go get -v -t -d ./...
 mkdir bin

@@ -7,7 +7,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/CyLabAcademy/challenge-orchestrator/cork/dockerfiles"
+	"github.com/CyLabAcademy/cork/cork/dockerfiles"
 )
 
 const manualSchemaPrefix = "manual-"
