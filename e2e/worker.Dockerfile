@@ -22,7 +22,7 @@ ARG OCI_INTERCEPTOR_REF=v0.3.0
 FROM rust:alpine AS oci-interceptor
 ARG OCI_INTERCEPTOR_REF
 RUN apk add --no-cache git musl-dev
-RUN cargo install --locked --git https://github.com/picoCTF/oci-interceptor \
+RUN cargo install --locked --git https://github.com/CyLabAcademy/oci-interceptor \
       --tag "$OCI_INTERCEPTOR_REF" --root /out
 
 FROM docker:${DIND_VERSION}-dind

@@ -1,6 +1,6 @@
-# challenge-orchestrator (cork)
+# cork
 
-challenge-orchestrator is a custom fork of the cmgr platform originally developed by the US Army Cyber Institute. It is custom built to handle the needs of the Cylab Security Academy infrastructure.
+cork is a custom fork of the cmgr platform originally developed by the US Army Cyber Institute. It is custom built to handle the needs of the Cylab Security Academy infrastructure.
 
 ## Introduction
 
@@ -131,9 +131,9 @@ Both CA private keys (`docker-ca-key.pem`, `zot-ca-key.pem`) stay offline and ar
 
 ### Orchestrator
 
-1. Install cork on the server by cloning this repository and building using `go build -v -ldflags "$(sh ci/version.sh --ldflags)" -o bin ./...` in the challenge-orchestrator directory. That produces `corkd`, the daemon, `cork`, its CLI, and `cork-build`, the build plane. Release tarballs (`cork_<os>_<arch>.tar.gz`) also carry `cmgrd` and `cmgrd-cli` as symlinks to the first two, and the same tarball is published under the pre-rename `cmgr_<os>_<arch>.tar.gz` name, so installers and scripts from before the rename keep working; those aliases go away two minor releases after the rename.
+1. Install cork on the server by cloning this repository and building using `go build -v -ldflags "$(sh ci/version.sh --ldflags)" -o bin ./...` in the cork directory. That produces `corkd`, the daemon, `cork`, its CLI, and `cork-build`, the build plane. Release tarballs (`cork_<os>_<arch>.tar.gz`) also carry `cmgrd` and `cmgrd-cli` as symlinks to the first two, and the same tarball is published under the pre-rename `cmgr_<os>_<arch>.tar.gz` name, so installers and scripts from before the rename keep working; those aliases go away two minor releases after the rename.
 2. Install docker on the server. Required to build images. https://docs.docker.com/engine/install/ubuntu/
-3. Install docker-reaper onto the server. This prevents stale containers and unused images from accumulating. https://github.com/picoCTF/docker-reaper. If you don't mind the orchestrator's local docker daemon, which is only used for building, being filled with build artifacts, then this can step can be skipped.
+3. Install docker-reaper onto the server. This prevents stale containers and unused images from accumulating. https://github.com/CyLabAcademy/docker-reaper. If you don't mind the orchestrator's local docker daemon, which is only used for building, being filled with build artifacts, then this can step can be skipped.
 4. Configure cork's environment variables
 5. Move the certificates over. The orchestrator holds two cert sets from different CAs: the **docker-ca** set (authenticates cork to the workers) in `$DOCKER_CERT_PATH`, and the **zot-ca** set (authenticates cork to the registry) in CERTS.D.
   ┌────────────────────────┬────────────────────────────────────┐
@@ -159,7 +159,7 @@ The two sets have different trust roots and are not interchangeable: the `$DOCKE
 
 1. Install the health test service. This can be found at https://github.com/CyLabAcademy/cork-telemetry 
 2. Install docker onto the server. https://docs.docker.com/engine/install/ubuntu/
-3. Install docker-reaper onto the server. This prevents stale containers and unused images from accumulating. https://github.com/picoCTF/docker-reaper
+3. Install docker-reaper onto the server. This prevents stale containers and unused images from accumulating. https://github.com/CyLabAcademy/docker-reaper
 4. Copy over config-examples/worker/daemon.json -> /etc/docker/daemon.json. Make sure the values are correct
 5. Copy over config-examples/worker/override.conf -> /etc/systemd/system/docker.service.d/override.conf. This fixes an issue where -H is used for both a file descriptor and in daemon.json. The FD is no longer necessary since we're binding to a tcp port anyways
 6. Copy over the relevant certificates. The worker's dockerd uses the **docker-ca** set; its registry pull uses the **zot-ca** set.
@@ -772,7 +772,7 @@ built and installed.  To get started, you can run:
 
 ```sh
 git clone https://github.com/CyLabAcademy/cork
-cd challenge-orchestrator
+cd cork
 go get -v -t -d ./...
 mkdir bin
 go build -v -ldflags "$(sh ci/version.sh --ldflags)" -o bin ./...
