@@ -780,7 +780,8 @@ const (
 		templatable,
 		maxusers,
 		category,
-		points
+		points,
+		difficulty
 	)
 	VALUES (
 		:id,
@@ -796,7 +797,8 @@ const (
 		:templatable,
 		:maxusers,
 		:category,
-		:points
+		:points,
+		:difficulty
 	);`
 
 	challengeUpdateQuery string = `
@@ -812,7 +814,8 @@ const (
 		templatable = :templatable,
 		maxusers = :maxusers,
 		category = :category,
-		points = :points
+		points = :points,
+		difficulty = :difficulty
 	WHERE id = :id;`
 )
 

@@ -137,11 +137,21 @@ const shortLinkAsRePattern string = `\{\{\s*link_as\(["']` + urlPathPattern + `[
 
 var shortLinkAsRe *regexp.Regexp = regexp.MustCompile(shortLinkAsRePattern)
 
+// difficulties are the values a problem.md may declare as its difficulty;
+// ChallengeMetadata.Difficulty is empty when it declares none.
+var difficulties = []string{"easy", "medium", "hard"}
+
 func (m *Manager) validateMetadata(md *ChallengeMetadata) error {
 	var lastErr error
 	// Require a challenge name
 	if md.Name == "" {
 		lastErr = fmt.Errorf("challenge file missing name: %s", md.Path)
+		m.log.error(lastErr)
+	}
+
+	if md.Difficulty != "" && !slices.Contains(difficulties, md.Difficulty) {
+		lastErr = fmt.Errorf("invalid difficulty '%s' (must be one of %s): %s",
+			md.Difficulty, strings.Join(difficulties, ", "), md.Path)
 		m.log.error(lastErr)
 	}
 

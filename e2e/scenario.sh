@@ -2858,7 +2858,7 @@ if (( FULL )); then
   step "container options: a challenge that asks for cpu, memory, pid and file limits gets them in its container's HostConfig on the worker"
   # Production runs the whole picoCTF library, and that library hardens its
   # challenges through the "## Challenge Options" block
-  # (examples/specification.md:93-190, examples/multi/problem.md:41-52): the
+  # (examples/specification.md:100-197, examples/multi/problem.md:41-52): the
   # cpu, memory and pid ceilings are what keep one instance from taking a
   # worker down with it. Nothing in e2e/schema.yaml declares any -- its four
   # challenges are chosen by delivery type, not by hardening -- and this step

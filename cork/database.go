@@ -32,7 +32,8 @@ const schemaQuery string = `
 		templatable INTEGER NOT NULL CHECK(templatable == 0 OR templatable == 1),
 		maxusers INTEGER NOT NULL CHECK(maxusers >= 0),
 		category TEXT,
-		points INTEGER NOT NULL CHECK(points >= 0)
+		points INTEGER NOT NULL CHECK(points >= 0),
+		difficulty TEXT NOT NULL DEFAULT ''
 	);
 
 	CREATE TABLE IF NOT EXISTS hints (
@@ -298,6 +299,22 @@ func (m *Manager) initDatabase() error {
 		_, err = db.Exec("ALTER TABLE containerOptions ADD COLUMN seccomp TEXT NOT NULL DEFAULT '';")
 		if err != nil {
 			m.log.errorf("could not migrate containerOptions.seccomp column: %s", err)
+			return err
+		}
+	}
+
+	// Migrate older DBs: add challenges.difficulty. The empty default is "not
+	// declared", which every existing challenge was.
+	var difficultyColumnCount int
+	err = db.QueryRow("SELECT COUNT(1) FROM pragma_table_info('challenges') WHERE name='difficulty';").Scan(&difficultyColumnCount)
+	if err != nil {
+		m.log.errorf("could not inspect challenges schema: %s", err)
+		return err
+	}
+	if difficultyColumnCount == 0 {
+		_, err = db.Exec("ALTER TABLE challenges ADD COLUMN difficulty TEXT NOT NULL DEFAULT '';")
+		if err != nil {
+			m.log.errorf("could not migrate challenges.difficulty column: %s", err)
 			return err
 		}
 	}

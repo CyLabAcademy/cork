@@ -619,6 +619,52 @@ func TestTagLineRegex(t *testing.T) {
 	}
 }
 
+// TestDifficulty verifies that a declared difficulty is read in any case and
+// stored lower-cased, and that validation admits only the three levels or
+// none at all.
+func TestDifficulty(t *testing.T) {
+	mgr := newTestManager()
+
+	content := "# Difficulty Challenge\n\n- Type: custom\n- Difficulty: Hard\n"
+	dir := t.TempDir()
+	path := filepath.Join(dir, "problem.md")
+	if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write problem.md: %s", err)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("failed to stat problem.md: %s", err)
+	}
+	md, err := mgr.loadMarkdownChallenge(path, info)
+	if err != nil {
+		t.Fatalf("loadMarkdownChallenge failed: %s", err)
+	}
+	if md.Difficulty != "hard" {
+		t.Errorf("expected difficulty 'hard', got %q", md.Difficulty)
+	}
+
+	for _, tc := range []struct {
+		difficulty string
+		valid      bool
+	}{
+		{"", true},
+		{"easy", true},
+		{"medium", true},
+		{"hard", true},
+		{"insane", false},
+		{"1", false},
+	} {
+		md := &ChallengeMetadata{Name: "Difficulty Challenge", Difficulty: tc.difficulty}
+		err := mgr.validateMetadata(md)
+		if tc.valid && err != nil {
+			t.Errorf("difficulty %q: expected valid, got %s", tc.difficulty, err)
+		}
+		if !tc.valid && err == nil {
+			t.Errorf("difficulty %q: expected an error, got nil", tc.difficulty)
+		}
+	}
+}
+
 // TestLoadMarkdownChallengeFailsOnSectionError verifies that an error while
 // processing a markdown section — here a duplicate mapping key, which yaml v3
 // rejects — fails the whole load rather than being logged and swallowed. A

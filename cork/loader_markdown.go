@@ -153,6 +153,8 @@ func (m *Manager) loadMarkdownChallenge(path string, info os.FileInfo) (*Challen
 			i, tmpErr := strconv.Atoi(match[2])
 			md.MaxUsers = i
 			err = tmpErr
+		case "difficulty":
+			md.Difficulty = strings.ToLower(match[2])
 		default:
 			err = fmt.Errorf("unrecognized top-level attribute '%s' on line %d: %s", match[1], idx, path)
 			m.log.error(err)

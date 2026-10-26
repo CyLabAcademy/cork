@@ -103,6 +103,9 @@ func infoCommand(mgr *cork.Manager, args []string) int {
 		fmt.Printf("    Challenge Type: %s\n", cMeta.ChallengeType)
 		fmt.Printf("    Category: %s\n", cMeta.Category)
 		fmt.Printf("    Points: %d\n", cMeta.Points)
+		if cMeta.Difficulty != "" {
+			fmt.Printf("    Difficulty: %s\n", cMeta.Difficulty)
+		}
 		if *verbose {
 			fmt.Printf("\n    Description:\n        %s\n", cMeta.Description)
 			fmt.Printf("\n    Details:\n        %s\n", cMeta.Details)
