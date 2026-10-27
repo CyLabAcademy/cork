@@ -384,6 +384,13 @@ definitions:
       points:
         type: integer
         format: int32
+      difficulty:
+        type: string
+        enum: [easy, medium, hard]
+        description: >-
+          The difficulty declared in problem.md. Absent when the challenge
+          declares none, and front-ends should then keep whatever difficulty
+          they hold for it.
       tags:
         type: array
         items:

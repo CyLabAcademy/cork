@@ -4,6 +4,13 @@
 - Type: custom
 - Category: example
 - Points: 1
+- Difficulty: easy
+
+## Metadata
+
+`Difficulty` is optional and is one of `easy`, `medium` or `hard`,
+case-insensitive; any other value fails the load. A challenge that leaves it out reports no
+difficulty, and front-ends keep whatever they already hold for it.
 
 ## Body Content
 

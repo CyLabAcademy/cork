@@ -35,6 +35,7 @@ func TestDatabaseChallengeRoundTrip(t *testing.T) {
 		MaxUsers:      0,
 		Category:      "Web",
 		Points:        100,
+		Difficulty:    "hard",
 		ChallengeOptions: ChallengeOptions{
 			Overrides: map[string]ContainerOptions{
 				"": {},
@@ -71,6 +72,9 @@ func TestDatabaseChallengeRoundTrip(t *testing.T) {
 	}
 	if got.Points != 100 {
 		t.Errorf("expected Points 100, got %d", got.Points)
+	}
+	if got.Difficulty != "hard" {
+		t.Errorf("expected Difficulty 'hard', got %q", got.Difficulty)
 	}
 	if len(got.Hints) != 2 || got.Hints[0] != "hint1" || got.Hints[1] != "hint2" {
 		t.Errorf("unexpected Hints: %v", got.Hints)
@@ -170,6 +174,7 @@ func TestDatabaseUpdateChallenge(t *testing.T) {
 	challenge.Hints = []string{"new hint 1", "new hint 2", "new hint 3"}
 	challenge.Tags = []string{"updated", "modified"}
 	challenge.Attributes = map[string]string{"version": "2", "status": "active"}
+	challenge.Difficulty = "easy"
 
 	errs = mgr.updateChallenges([]*ChallengeMetadata{challenge}, nil, false)
 	if len(errs) > 0 {
@@ -195,6 +200,71 @@ func TestDatabaseUpdateChallenge(t *testing.T) {
 	}
 	if got.Attributes["status"] != "active" {
 		t.Errorf("expected status=active, got %q", got.Attributes["status"])
+	}
+	if got.Difficulty != "easy" {
+		t.Errorf("expected difficulty set by the update, got %q", got.Difficulty)
+	}
+}
+
+// TestChallengesDifficultyMigration verifies that a challenges table from
+// before difficulty existed gains the column in place, that its rows read
+// back as declaring none, and that re-running the migration is a no-op.
+func TestChallengesDifficultyMigration(t *testing.T) {
+	dbFile, err := os.CreateTemp("", "cmgr-difficulty-migrate-*.db")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %s", err)
+	}
+	dbFile.Close()
+	t.Cleanup(func() { removeDBFiles(dbFile.Name()) })
+
+	dsn := dbFile.Name() + "?_fk=false&_journal_mode=WAL&_busy_timeout=50&_synchronous=NORMAL"
+	legacy, err := sqlx.Open("sqlite3", dsn)
+	if err != nil {
+		t.Fatalf("failed to open db: %s", err)
+	}
+	schema := `
+	CREATE TABLE challenges (
+		id TEXT NOT NULL PRIMARY KEY,
+		name TEXT NOT NULL,
+		namespace TEXT NOT NULL,
+		challengetype TEXT NOT NULL,
+		description TEXT NOT NULL,
+		details TEXT,
+		sourcechecksum INT NOT NULL,
+		metadatachecksum INT NOT NULL,
+		path TEXT NOT NULL,
+		solvescript INTEGER NOT NULL CHECK(solvescript == 0 OR solvescript == 1),
+		templatable INTEGER NOT NULL CHECK(templatable == 0 OR templatable == 1),
+		maxusers INTEGER NOT NULL CHECK(maxusers >= 0),
+		category TEXT,
+		points INTEGER NOT NULL CHECK(points >= 0)
+	);
+	INSERT INTO challenges VALUES ('test/old', 'Old', 'test', 'custom', '', '', 1, 1, '/tmp/old', 0, 0, 0, 'Web', 10);`
+	if _, err := legacy.Exec(schema); err != nil {
+		t.Fatalf("failed to create legacy schema: %s", err)
+	}
+	legacy.Close()
+
+	os.Setenv(DB_ENV, dbFile.Name())
+	defer os.Unsetenv(DB_ENV)
+
+	for _, pass := range []string{"migration", "idempotence"} {
+		mgr := new(Manager)
+		mgr.log = newLogger(DISABLED)
+		if err := mgr.initDatabase(); err != nil {
+			t.Fatalf("initDatabase failed (%s pass): %s", pass, err)
+		}
+
+		// The same query lookupChallengeMetadata scans with: every column
+		// must map onto ChallengeMetadata.
+		md := new(ChallengeMetadata)
+		if err := mgr.db.Get(md, "SELECT * FROM challenges WHERE id=?", "test/old"); err != nil {
+			t.Fatalf("failed to read legacy row (%s pass): %s", pass, err)
+		}
+		if md.Difficulty != "" || md.Points != 10 {
+			t.Errorf("expected legacy row with no difficulty and 10 points after %s pass, got %q and %d", pass, md.Difficulty, md.Points)
+		}
+		mgr.db.Close()
 	}
 }
 

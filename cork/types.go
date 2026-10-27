@@ -221,6 +221,7 @@ type ChallengeMetadata struct {
 	MaxUsers         int                 `json:"max_users,omitempty"`
 	Category         string              `json:"category,omitempty"`
 	Points           int                 `json:"points,omitempty"`
+	Difficulty       string              `json:"difficulty,omitempty"`
 	Tags             []string            `json:"tags,omitempty"`
 	Attributes       map[string]string   `json:"attributes,omitempty"`
 	ChallengeOptions ChallengeOptions    `json:"challenge_options,omitempty"`
