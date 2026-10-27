@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/moby/moby/client"
 )
 
@@ -33,6 +34,18 @@ func testWorkerConn(r workerReachable) *workerConn {
 	w.reachable.Store(int32(r))
 	w.load.Store(int32(workerLoadOk))
 	return w
+}
+
+// workerDB is a database holding a row for each of ips, which is where
+// SetWorkerDown persists its assertion.
+func workerDB(t *testing.T, ips ...string) *sqlx.DB {
+	t.Helper()
+	db := setupTestManager(t).db
+	t.Cleanup(func() { db.Close() })
+	for _, ip := range ips {
+		db.MustExec("INSERT INTO workers(ip, public) VALUES (?, '');", ip)
+	}
+	return db
 }
 
 func reachableOf(w *workerConn) workerReachable { return workerReachable(w.reachable.Load()) }

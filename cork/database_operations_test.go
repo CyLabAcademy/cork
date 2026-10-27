@@ -268,6 +268,51 @@ func TestChallengesDifficultyMigration(t *testing.T) {
 	}
 }
 
+// TestWorkersDownSinceMigration verifies that a workers table from before
+// worker-down was persisted gains downsince in place, that its rows read back
+// as not down, and that re-running the migration is a no-op.
+func TestWorkersDownSinceMigration(t *testing.T) {
+	dbFile, err := os.CreateTemp("", "cmgr-downsince-migrate-*.db")
+	if err != nil {
+		t.Fatalf("failed to create temp file: %s", err)
+	}
+	dbFile.Close()
+	t.Cleanup(func() { removeDBFiles(dbFile.Name()) })
+
+	dsn := dbFile.Name() + "?_fk=false&_journal_mode=WAL&_busy_timeout=50&_synchronous=NORMAL"
+	legacy, err := sqlx.Open("sqlite3", dsn)
+	if err != nil {
+		t.Fatalf("failed to open db: %s", err)
+	}
+	// With the leftover 'removed' column that older databases still carry.
+	schema := `
+	CREATE TABLE workers (
+		ip TEXT NOT NULL PRIMARY KEY,
+		public TEXT NOT NULL DEFAULT '',
+		removed INTEGER NOT NULL DEFAULT 0
+	);
+	INSERT INTO workers(ip, public) VALUES ('10.0.0.1', 'worker-a.example');`
+	if _, err := legacy.Exec(schema); err != nil {
+		t.Fatalf("failed to create legacy schema: %s", err)
+	}
+	legacy.Close()
+
+	os.Setenv(DB_ENV, dbFile.Name())
+	defer os.Unsetenv(DB_ENV)
+
+	for _, pass := range []string{"migration", "idempotence"} {
+		mgr := new(Manager)
+		mgr.log = newLogger(DISABLED)
+		if err := mgr.initDatabase(); err != nil {
+			t.Fatalf("initDatabase failed (%s pass): %s", pass, err)
+		}
+		if storedDownSince(t, mgr, "10.0.0.1").Valid {
+			t.Errorf("a worker from before the migration reads back as down after the %s pass", pass)
+		}
+		mgr.db.Close()
+	}
+}
+
 // TestDatabaseBuildLifecycle tests the build database operations
 func TestDatabaseBuildLifecycle(t *testing.T) {
 	mgr := setupTestManager(t)
