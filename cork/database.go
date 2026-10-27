@@ -477,22 +477,6 @@ func (m *Manager) initDatabase() error {
 		}
 	}
 
-	// Migrate older DBs: add workers.downsince. NULL is "not down", and a
-	// worker downed before the column existed came back up at that restart.
-	var downSinceCols int
-	err = db.QueryRow("SELECT COUNT(1) FROM pragma_table_info('workers') WHERE name='downsince';").Scan(&downSinceCols)
-	if err != nil {
-		m.log.errorf("could not inspect workers schema: %s", err)
-		return err
-	}
-	if downSinceCols == 0 {
-		_, err = db.Exec("ALTER TABLE workers ADD COLUMN downsince INTEGER;")
-		if err != nil {
-			m.log.errorf("could not migrate workers.downsince column: %s", err)
-			return err
-		}
-	}
-
 	// Port pools are per worker: reservePort reads one worker's assignments in
 	// the range and claimPort checks one port on one worker, so both want the
 	// worker first. The index on port alone stays for databases that have it.
@@ -516,6 +500,22 @@ func (m *Manager) initDatabase() error {
 		_, err = db.Exec("ALTER TABLE workers ADD COLUMN public TEXT NOT NULL DEFAULT '';")
 		if err != nil {
 			m.log.errorf("could not migrate workers.public column: %s", err)
+			return err
+		}
+	}
+
+	// Migrate older DBs: add workers.downsince. NULL is "not down", and a
+	// worker downed before the column existed came back up at that restart.
+	var downSinceCols int
+	err = db.QueryRow("SELECT COUNT(*) FROM pragma_table_info('workers') WHERE name = 'downsince';").Scan(&downSinceCols)
+	if err != nil {
+		m.log.errorf("could not check workers table schema: %s", err)
+		return err
+	}
+	if downSinceCols == 0 {
+		_, err = db.Exec("ALTER TABLE workers ADD COLUMN downsince INTEGER;")
+		if err != nil {
+			m.log.errorf("could not migrate workers.downsince column: %s", err)
 			return err
 		}
 	}

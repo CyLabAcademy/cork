@@ -56,7 +56,7 @@ func (r reconcileResult) String() string {
 // DB-only stop leaves behind while the worker is down or purged
 // (stopInstance, RemoveWorker). They are not merely untidy. A box that
 // rejoins placement, through worker-add or a corkd restart that starts every
-// worker afresh, would otherwise refuse any new instance that draws one of
+// worker but a downed one afresh, would otherwise refuse any new instance that draws one of
 // their published host ports. It therefore runs before the worker's poller
 // starts (runWorker), so nothing is placed on the worker until they are gone.
 //

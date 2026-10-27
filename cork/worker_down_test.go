@@ -3,6 +3,7 @@ package cork
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"testing"
 )
 
@@ -65,6 +66,27 @@ func TestWorkerDownSurvivesARestart(t *testing.T) {
 	}
 	if got := reachableOf(r.workers[ejectedIP]); got == workerDown {
 		t.Fatal("an ejected worker came back down: an observation was persisted as an assertion, and no probe will ever lift it")
+	}
+}
+
+// Marked before the write: a worker-down that cannot persist still takes the
+// worker out of placement for the life of this corkd, and its error says so.
+func TestWorkerDownThatCannotPersistStillTakesTheWorkerDown(t *testing.T) {
+	m := &Manager{log: newLogger(DISABLED), ctx: context.Background()}
+	w := testWorkerConn(workerReachableOk)
+	m.workers = map[string]*workerConn{w.ip: w}
+	m.db = workerDB(t, w.ip)
+	m.db.Close()
+
+	err := m.SetWorkerDown(w.ip)
+	if err == nil {
+		t.Fatal("worker-down reported success on a database it could not write")
+	}
+	if got := reachableOf(w); got != workerDown {
+		t.Fatalf("reachable %s after a worker-down whose write failed, want down", got)
+	}
+	if !strings.Contains(err.Error(), "is down") {
+		t.Errorf("error %q does not say the worker is down, so worker-down reads as having done nothing", err)
 	}
 }
 

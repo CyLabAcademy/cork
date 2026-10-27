@@ -422,8 +422,8 @@ func (m *Manager) EnableWorkerPlacement() {
 }
 
 // initWorkers loads the persisted worker list and starts a telemetry poller
-// per worker. Unreachable workers are marked down by their pollers and skipped
-// by placement — never a startup failure. A worker an operator took down comes
+// per worker. Unreachable workers stay unresponsive, out of placement, until
+// they answer — never a startup failure. A worker an operator took down comes
 // back down, as of when they did it.
 func (m *Manager) initWorkers() error {
 	// Under the lock, as in AddWorker: each conn's goroutine starts inside
@@ -563,7 +563,8 @@ func (m *Manager) newWorkerConn(ip, public string, fromRecovery bool, downSince 
 // still starting when corkd starts or the worker is added therefore costs
 // seconds, not a worker-add.
 func (m *Manager) runWorker(w *workerConn) {
-	// Restored down: left exactly as worker-down left it, neither reconciled
+	// Down before this ran (restored at startup, or downed the moment the
+	// conn was published): left as worker-down leaves it, neither reconciled
 	// nor probed, until a worker-add replaces the conn.
 	if workerReachable(w.reachable.Load()) == workerDown {
 		<-w.done
@@ -1226,7 +1227,10 @@ func (m *Manager) SetWorkerDown(ip string) error {
 	// down for as long as this corkd runs.
 	m.markWorkerDown(w)
 	if _, err := m.db.Exec("UPDATE workers SET downsince = ? WHERE ip = ?;", w.since.Load(), ip); err != nil {
-		m.log.errorf("worker %s is down, but a restart would return it to placement: could not persist it: %s", ip, err)
+		// Said in the error too, which is all the PATCH answers with: the
+		// worker is down, and worker-down again retries the write.
+		err = fmt.Errorf("worker %s is down, but a restart would return it to placement: could not persist it: %w", ip, err)
+		m.log.errorf("%s", err)
 		return err
 	}
 	return nil
