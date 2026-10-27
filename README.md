@@ -370,7 +370,7 @@ a spell of running clean.
 `down` is the exception, and the only state you can set by hand
 (`cork worker-down <ip>`). An operator taking a box out of service knows
 something the probes do not, so no probe will lift it: it stands until
-`worker-add`.
+`worker-add`, across corkd restarts too.
 
 Use it before a **termination**, not before a reboot. A reboot needs nothing:
 the box is ejected while it is away and rejoins by itself, which is the whole

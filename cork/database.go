@@ -163,12 +163,16 @@ const schemaQuery string = `
 	-- Docker workers for multi-host instance placement. ip is the private
 	-- orchestration address cork dials; public is the player-facing address
 	-- (IP or hostname) surfaced in instance metadata, '' meaning the private
-	-- IP doubles as public. worker-remove purges the row along with the
-	-- worker's instance records. (DBs created before this scheme carry a
-	-- leftover 'removed' column; it is never read.)
+	-- IP doubles as public. downsince is when worker-down took the worker
+	-- down (unix nanos), NULL until then and again after a worker-add: down
+	-- is the one asserted state, so the one a restart cannot re-derive from a
+	-- probe. worker-remove purges the row along with the worker's instance
+	-- records. (DBs created before this scheme carry a leftover 'removed'
+	-- column; it is never read.)
 	CREATE TABLE IF NOT EXISTS workers (
 		ip TEXT NOT NULL PRIMARY KEY,
-		public TEXT NOT NULL DEFAULT ''
+		public TEXT NOT NULL DEFAULT '',
+		downsince INTEGER
 	);
 
 	-- Schemas every worker holds the images of (see preload.go). Not a
@@ -470,6 +474,22 @@ func (m *Manager) initDatabase() error {
 				m.log.errorf("could not migrate %s.worker column: %s", table, err)
 				return err
 			}
+		}
+	}
+
+	// Migrate older DBs: add workers.downsince. NULL is "not down", and a
+	// worker downed before the column existed came back up at that restart.
+	var downSinceCols int
+	err = db.QueryRow("SELECT COUNT(1) FROM pragma_table_info('workers') WHERE name='downsince';").Scan(&downSinceCols)
+	if err != nil {
+		m.log.errorf("could not inspect workers schema: %s", err)
+		return err
+	}
+	if downSinceCols == 0 {
+		_, err = db.Exec("ALTER TABLE workers ADD COLUMN downsince INTEGER;")
+		if err != nil {
+			m.log.errorf("could not migrate workers.downsince column: %s", err)
+			return err
 		}
 	}
 

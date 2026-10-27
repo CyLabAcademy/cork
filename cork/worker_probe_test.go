@@ -262,6 +262,7 @@ func TestRecoveryDoesNotResurrectAnAssertedDownWorker(t *testing.T) {
 	w := testWorkerConn(workerUnresponsive)
 	w.done = make(chan struct{})
 	m.workers = map[string]*workerConn{w.ip: w}
+	m.db = workerDB(t, w.ip)
 
 	if err := m.SetWorkerDown(w.ip); err != nil {
 		t.Fatalf("worker-down: %s", err)
@@ -317,9 +318,10 @@ func TestWorkerDownAndRecoveryCannotBothWin(t *testing.T) {
 	timing.pollInterval = 5 * time.Millisecond
 	timing.maxMisses = 1
 
+	db := workerDB(t, testWorkerConn(workerUnresponsive).ip)
 	var swapped, declined int
 	for i := 0; i < 100; i++ {
-		m := &Manager{log: newLogger(DISABLED), ctx: context.Background(), workerTiming: timing}
+		m := &Manager{log: newLogger(DISABLED), ctx: context.Background(), workerTiming: timing, db: db}
 		w := testWorkerConn(workerUnresponsive)
 		w.done = make(chan struct{})
 		m.workers = map[string]*workerConn{w.ip: w}
@@ -381,6 +383,7 @@ func TestWorkerDownLandsOnTheConnThatRecoveryInstalled(t *testing.T) {
 	w := testWorkerConn(workerUnresponsive)
 	w.done = make(chan struct{})
 	m.workers = map[string]*workerConn{w.ip: w}
+	m.db = workerDB(t, w.ip)
 
 	m.recoverWorker(w)
 	fresh := m.workers[w.ip]

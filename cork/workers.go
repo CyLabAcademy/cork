@@ -3,6 +3,7 @@ package cork
 import (
 	"context"
 	"crypto/tls"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -422,7 +423,8 @@ func (m *Manager) EnableWorkerPlacement() {
 
 // initWorkers loads the persisted worker list and starts a telemetry poller
 // per worker. Unreachable workers are marked down by their pollers and skipped
-// by placement — never a startup failure.
+// by placement — never a startup failure. A worker an operator took down comes
+// back down, as of when they did it.
 func (m *Manager) initWorkers() error {
 	// Under the lock, as in AddWorker: each conn's goroutine starts inside
 	// newWorkerConn and may read the map before the loop below is through.
@@ -431,16 +433,23 @@ func (m *Manager) initWorkers() error {
 	m.workers = make(map[string]*workerConn)
 
 	var rows []struct {
-		Ip     string `db:"ip"`
-		Public string `db:"public"`
+		Ip        string        `db:"ip"`
+		Public    string        `db:"public"`
+		DownSince sql.NullInt64 `db:"downsince"`
 	}
-	if err := m.db.Select(&rows, "SELECT ip, public FROM workers;"); err != nil {
+	if err := m.db.Select(&rows, "SELECT ip, public, downsince FROM workers;"); err != nil {
 		m.log.errorf("could not load workers: %s", err)
 		return err
 	}
 
 	for _, row := range rows {
-		w, err := m.newWorkerConn(row.Ip, row.Public, false)
+		var downSince time.Time
+		if row.DownSince.Valid {
+			downSince = time.Unix(0, row.DownSince.Int64)
+			m.log.infof("worker %s: down since %s, as worker-down left it; worker-add returns it to placement",
+				row.Ip, downSince.UTC().Format(time.RFC3339))
+		}
+		w, err := m.newWorkerConn(row.Ip, row.Public, false, downSince)
 		if err != nil {
 			return err
 		}
@@ -477,7 +486,9 @@ func workerTLSConfig() (*tls.Config, error) {
 	return cfg, nil
 }
 
-func (m *Manager) newWorkerConn(ip, public string, fromRecovery bool) (*workerConn, error) {
+// newWorkerConn builds a worker's conn and starts it. downSince is non-zero
+// only for a worker initWorkers restores down.
+func (m *Manager) newWorkerConn(ip, public string, fromRecovery bool, downSince time.Time) (*workerConn, error) {
 	tlsCfg, err := workerTLSConfig()
 	if err != nil {
 		m.log.errorf("could not load worker TLS material: %s", err)
@@ -530,6 +541,14 @@ func (m *Manager) newWorkerConn(ip, public string, fromRecovery bool) (*workerCo
 	w.reachable.Store(int32(workerUnresponsive))
 	w.load.Store(int32(workerLoadUnknown))
 	w.since.Store(time.Now().UnixNano())
+	if !downSince.IsZero() {
+		// Set before the goroutine starts, so nothing sees the worker as
+		// anything but down.
+		reason := downReason
+		w.reachable.Store(int32(workerDown))
+		w.since.Store(downSince.UnixNano())
+		w.reason.Store(&reason)
+	}
 	// Before the goroutine below exists, which is the only thing that makes
 	// this plain field safe to read from it.
 	w.fromRecovery = fromRecovery
@@ -544,6 +563,12 @@ func (m *Manager) newWorkerConn(ip, public string, fromRecovery bool) (*workerCo
 // still starting when corkd starts or the worker is added therefore costs
 // seconds, not a worker-add.
 func (m *Manager) runWorker(w *workerConn) {
+	// Restored down: left exactly as worker-down left it, neither reconciled
+	// nor probed, until a worker-add replaces the conn.
+	if workerReachable(w.reachable.Load()) == workerDown {
+		<-w.done
+		return
+	}
 	t := m.timing()
 	switch m.reconcileWithRetries(w, m.reconcileWorker, time.Duration(t.maxMisses)*t.pollInterval, t.pollInterval) {
 	case reconcileReady:
@@ -1038,7 +1063,7 @@ func (m *Manager) recoverWorker(w *workerConn) {
 		return
 	}
 
-	fresh, err := m.newWorkerConn(w.ip, w.public, true)
+	fresh, err := m.newWorkerConn(w.ip, w.public, true, time.Time{})
 	if err != nil {
 		// Rebuilding the client failed (TLS material unreadable): leave the
 		// worker ejected and try again on the next probe.
@@ -1058,10 +1083,14 @@ func (m *Manager) recoverWorker(w *workerConn) {
 		w.ip, time.Since(time.Unix(0, w.since.Load())).Round(time.Second))
 }
 
+// downReason is the reason a down worker reports, whether it was taken down
+// in this corkd or restored down at startup.
+const downReason = "taken down by an operator"
+
 // markWorkerDown asserts down, which no probe will lift. Reached only from
 // SetWorkerDown; the observed paths eject instead.
 func (m *Manager) markWorkerDown(w *workerConn) {
-	m.setReachable(w, workerDown, "taken down by an operator")
+	m.setReachable(w, workerDown, downReason)
 }
 
 // noteWorkerTransportError ejects a worker after a connection-level docker
@@ -1183,6 +1212,9 @@ func (w *workerConn) noteTimeout(now time.Time, callTimeout, window time.Duratio
 // placements. Holding the read lock across both means the two orderings are
 // the only ones left, and recoverWorker refuses to recover a worker it finds
 // down.
+//
+// The assertion is persisted under the same lock, so that a worker-add (which
+// clears it) cannot land between the two, and initWorkers restores it.
 func (m *Manager) SetWorkerDown(ip string) error {
 	m.workersMu.RLock()
 	defer m.workersMu.RUnlock()
@@ -1190,7 +1222,13 @@ func (m *Manager) SetWorkerDown(ip string) error {
 	if !ok {
 		return &UnknownIdentifierError{Type: "worker", Name: ip}
 	}
+	// Marked before the write, so a write that fails still leaves the worker
+	// down for as long as this corkd runs.
 	m.markWorkerDown(w)
+	if _, err := m.db.Exec("UPDATE workers SET downsince = ? WHERE ip = ?;", w.since.Load(), ip); err != nil {
+		m.log.errorf("worker %s is down, but a restart would return it to placement: could not persist it: %s", ip, err)
+		return err
+	}
 	return nil
 }
 
@@ -1261,10 +1299,13 @@ func (m *Manager) AddWorker(ip, public string) error {
 	// safe to run against a worker that is already registered. This column is
 	// the address a player connects to, so overwriting it with "" would
 	// silently repoint every instance cork went on to place there.
+	//
+	// It also lifts a persisted worker-down, as it lifts the one in memory.
 	_, err := m.db.Exec(
 		`INSERT INTO workers(ip, public) VALUES (?, ?)
 		 ON CONFLICT(ip) DO UPDATE SET
-		   public = CASE WHEN excluded.public = '' THEN workers.public ELSE excluded.public END;`,
+		   public = CASE WHEN excluded.public = '' THEN workers.public ELSE excluded.public END,
+		   downsince = NULL;`,
 		ip, public,
 	)
 	if err != nil {
@@ -1280,7 +1321,7 @@ func (m *Manager) AddWorker(ip, public string) error {
 		}
 	}
 
-	w, err := m.newWorkerConn(ip, public, false)
+	w, err := m.newWorkerConn(ip, public, false, time.Time{})
 	if err != nil {
 		return err
 	}
