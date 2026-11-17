@@ -1,24 +1,36 @@
 # Automated Solvers
 
-One of the goals for `cmgr` is to further improve the state of CI/CD for CTFs.
-Part of this is creating a framework for automated solvescripts that can check
-the status and solvability of deployed challenges.  To enable this, we have
-implemented a standardized mechanism for solve scripts that can be easily run
-against individual challenge instances.
+A challenge can carry a solve script that proves it is solvable. cork itself
+runs no solvers; `ci/examples/run.sh` runs every example's on each pull
+request, against a fresh build, and checks that it recovers the flag cork
+recorded for that build. A challenge without a solver fails that check unless
+it is `flag-only`.
 
 ## Usage
 
-To create a solver, a challenge author only needs to create a `solver` directory
-inside of their challenge directory and add a `solve.py` script (Python 3) that
-implements the solution (both regular build tools and `pwntools` are installed by default).
+To create a solver, add a `solver` directory to the challenge directory with a
+`solve.py` script (Python 3) that implements the solution. Unless the
+directory brings its own `Dockerfile`, the script runs in Ubuntu 24.04 with
+`python3`, `pip3`, `socat` and `build-essential` installed
+(`ci/examples/solver.Dockerfile`); anything else goes in the files below.
 
-The `cmgr` interface will ensure any requested dependencies are installed prior to launching the script and will launch the script from a container in the same network as the challenge itself.  This allows the challenge author to leverage the standardized DNS naming convention (`challenge` for the container hosting the challenge and `solver` for the solve script container) as well as the static ports in use (5000/tcp for `cmgr` challenge types and whatever was chosen for "custom" challenges).
+For a challenge that runs a service, the solver container joins the
+instance's network, so it reaches the challenge as `challenge` (and is itself
+`solver`) on the port the container listens on, not the one published on the
+host.
 
-For artifact-only challenges (no published ports, e.g. `static-make`), there is no challenge container to connect to: the solver container runs on Docker's default network, so the `challenge` DNS name does not resolve and the flag must be recovered from the extracted artifacts in the working directory.  Outbound network access (e.g. for downloading tooling at runtime) remains available as before.
+For artifact-only challenges (no published ports, e.g. `static-make`), there is
+no challenge container to connect to: the solver container runs on Docker's
+default network, so the `challenge` DNS name does not resolve and the flag must
+be recovered from the artifacts. Outbound network access (e.g. for downloading
+tooling at runtime) remains available.
 
-In addition to the files in the `solver` directory, `cmgr` will extract the artifacts given to competitors into the working directory of the solve script prior to launch.
+The working directory holds the files of the `solver` directory, the artifacts
+given to competitors (extracted), and, when the build has lookup values,
+`metadata.json` with them.
 
-Once the flag has been retrieved, the solve script should write the flag to a file named `flag` in the working directory and exit.
+Once the flag has been retrieved, the solve script should write the flag to a
+file named `flag` in the working directory and exit, within ten minutes.
 
 ## Installing Dependencies
 

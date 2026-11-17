@@ -4,11 +4,11 @@ A compose project that runs the whole cork fleet on one machine and drives
 the real launch sequence through it: `corkd` built from this checkout, the
 docker daemon it builds on, a zot registry, and two docker workers with the
 telemetry agent, all wired with the PKI that `config-examples/gen-docker-certs.sh`
-mints. It replaces nothing: the `cmgr test` suite that CI used to run built
-and solved every example against one daemon and is gone since 4c81a10; this
-exercises what that never could, placement across workers, the registry round
-trip, worker health, rebuilds, and teardown across boxes, with four challenges
-and no solvers.
+mints. It does not cover the example corpus: every example is built,
+delivered and solved against one daemon on each pull request by
+`ci/examples/run.sh`. This exercises what that cannot, placement across
+workers, the registry round trip, worker health, rebuilds, and teardown across
+boxes, with four challenges and no solvers.
 
 ```
                  docker compose run --rm e2e  (scenario.sh)

@@ -101,3 +101,70 @@ jobs:
 
     - name: Display Coverage
       run: go tool cover -func=coverage.out
+
+  # Every example challenge, built and delivered by a corkd and solved by its
+  # own solver. One architecture: this checks the challenge corpus and the
+  # build path, not the toolchain.
+  examples:
+    name: Examples (build, deliver, solve)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      # The engine production runs, not the runner's own, which lags it: cork
+      # builds with no client session, and before 29.6.0 such a build cannot
+      # pull its base image (moby/moby#48112). Keep this in step with prod.
+      DOCKER_ENGINE: 29.10.0
+
+    steps:
+    - name: Check out code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        fetch-depth: 0 # ci/version.sh describes from a tag
+
+    - name: Set up Go
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      with:
+        go-version: '1.26.x'
+        cache: true
+
+    - name: Build
+      run: |
+        mkdir -p bin
+        LDFLAGS=$(sh ci/version.sh --ldflags)
+        go build -ldflags "$LDFLAGS" -o bin/ ./cmd/corkd ./cmd/cork
+
+    # With overlay2, as production's daemons are configured (BUILDER.md).
+    - name: Start the docker engine production runs
+      run: |
+        docker run -d --privileged --name engine -e DOCKER_TLS_CERTDIR= \
+          -p 127.0.0.1:2375:2375 "docker:${DOCKER_ENGINE}-dind" \
+          dockerd --host=tcp://0.0.0.0:2375 --storage-driver=overlay2
+        for _ in $(seq 60); do
+          docker -H tcp://127.0.0.1:2375 version >/dev/null 2>&1 && break
+          sleep 1
+        done
+        docker -H tcp://127.0.0.1:2375 info --format '{{.ServerVersion}} {{.Driver}}'
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+    # The disks example builds FROM this image, which no registry holds. Cached
+    # across runs, so its libguestfs and kernel install only re-runs when the
+    # Dockerfile changes; built on the runner's daemon, then handed over.
+    - name: Build the shared example base image
+      uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+      with:
+        context: ci
+        file: ci/guestfish-base.Dockerfile
+        tags: cmgr/examples-guestfish-base:latest
+        load: true
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Hand the base image to the engine
+      run: docker save cmgr/examples-guestfish-base:latest | docker -H tcp://127.0.0.1:2375 load
+
+    - name: Build, deliver and solve every example
+      env:
+        DOCKER_HOST: tcp://127.0.0.1:2375
+      run: bash ci/examples/run.sh bin
