@@ -597,6 +597,9 @@ func (m *Manager) createBuildContext(cm *ChallengeMetadata, dockerfile []byte) (
 		if err != nil {
 			return nil
 		}
+		// Owned by root, as COPY always made them under the classic builder:
+		// BuildKit keeps the owner a context file arrives with.
+		hdr.Uid, hdr.Gid, hdr.Uname, hdr.Gname = 0, 0, "", ""
 
 		archivePath := path[len(challengeDir)+1:]
 		hdr.Name = strings.ReplaceAll(archivePath, `\`, `/`)
