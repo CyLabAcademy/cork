@@ -230,42 +230,109 @@ func TestWorkerPublicAddr(t *testing.T) {
 	}
 }
 
-// The picoCTF platform reads the player-facing address under "hostname": with
-// dynamic_public_hostname set it stores the whole launch response and looks that
-// key up to resolve {{server}} in a challenge description. It is the same value
-// as worker_public, so the two are asserted to agree here rather than being left
-// to drift apart in a later edit.
-func TestHostnameMirrorsWorkerPublic(t *testing.T) {
-	withPublic := okWorker("10.0.0.1")
-	withPublic.public = "ctf.example.org"
-	m := managerWithWorkers(t, withPublic, okWorker("10.0.0.2"))
+// Every read that hands out instances reports the player-facing address under
+// "hostname" and "worker_public": the platform resolves {{server}} from
+// whichever read it stored, the launch response or the schema state.
+func TestInstanceReadsReportThePublicAddress(t *testing.T) {
+	m := setupTestManager(t)
+	t.Cleanup(func() { m.db.Close() })
+	named, bare := okWorker("10.0.0.1"), okWorker("10.0.0.2")
+	named.public = "ctf.example.org"
+	m.workers = map[string]*workerConn{named.ip: named, bare.ip: bare}
+	m.workerOrder = []string{named.ip, bare.ip}
 
-	for _, ip := range []string{"10.0.0.1", "10.0.0.2"} {
-		meta := &InstanceMetadata{Id: 1, Worker: ip}
-		meta.WorkerPublic = m.workerPublicAddr(meta.Worker)
-		meta.Hostname = meta.WorkerPublic
+	challenge := testChallenge("test/public-address", 0)
+	if errs := m.addChallenges([]*ChallengeMetadata{challenge}); len(errs) > 0 {
+		t.Fatalf("addChallenges: %v", errs)
+	}
+	build := insertTestBuild(t, m, "event", string(challenge.Id), "flag{%s}", 1, 0x1111)
 
-		if meta.Hostname != meta.WorkerPublic {
-			t.Fatalf("worker %s: hostname %q and worker_public %q disagree", ip, meta.Hostname, meta.WorkerPublic)
-		}
-		body, err := json.Marshal(meta)
+	// The address each instance's player is handed: the worker's public name,
+	// else its ip, and none at all on the local daemon.
+	want := map[InstanceId]string{}
+	for worker, addr := range map[string]string{named.ip: named.public, bare.ip: bare.ip, "": ""} {
+		res, err := m.db.Exec("INSERT INTO instances(build, lastsolved, is_finalized, worker) VALUES (?, 0, 1, ?);", build, worker)
 		if err != nil {
-			t.Fatalf("marshalling the instance: %s", err)
+			t.Fatal(err)
 		}
-		var out map[string]any
-		if err := json.Unmarshal(body, &out); err != nil {
-			t.Fatalf("unmarshalling the instance: %s", err)
+		id, err := res.LastInsertId()
+		if err != nil {
+			t.Fatal(err)
 		}
-		// Both keys, under the exact names each consumer reads.
-		if out["hostname"] != meta.WorkerPublic {
-			t.Errorf("worker %s: json 'hostname' is %v, want %q", ip, out["hostname"], meta.WorkerPublic)
+		want[InstanceId(id)] = addr
+	}
+
+	inState := func(state []*ChallengeMetadata) []*InstanceMetadata {
+		var instances []*InstanceMetadata
+		for _, c := range state {
+			for _, b := range c.Builds {
+				instances = append(instances, b.Instances...)
+			}
 		}
-		if out["worker_public"] != meta.WorkerPublic {
-			t.Errorf("worker %s: json 'worker_public' is %v, want %q", ip, out["worker_public"], meta.WorkerPublic)
-		}
-		if out["worker"] != ip {
-			t.Errorf("worker %s: json 'worker' is %v, want the private address", ip, out["worker"])
-		}
+		return instances
+	}
+	reads := []struct {
+		name string
+		read func() ([]*InstanceMetadata, error)
+	}{
+		// GET /instances/<id>, and the launch response
+		{"instance", func() ([]*InstanceMetadata, error) {
+			var instances []*InstanceMetadata
+			for id := range want {
+				meta, err := m.GetInstanceMetadata(id)
+				if err != nil {
+					return nil, err
+				}
+				instances = append(instances, meta)
+			}
+			return instances, nil
+		}},
+		// GET /schemas/<name>
+		{"schema-state", func() ([]*InstanceMetadata, error) {
+			state, err := m.GetSchemaState("event")
+			return inState(state), err
+		}},
+		// GET /state, and through dumpChallenge the hand-over response
+		{"state-dump", func() ([]*InstanceMetadata, error) {
+			state, err := m.DumpState(nil)
+			return inState(state), err
+		}},
+	}
+	for _, r := range reads {
+		t.Run(r.name, func(t *testing.T) {
+			instances, err := r.read()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(instances) != len(want) {
+				t.Fatalf("read %d instances, want %d", len(instances), len(want))
+			}
+			for _, meta := range instances {
+				body, err := json.Marshal(meta)
+				if err != nil {
+					t.Fatal(err)
+				}
+				var out map[string]any
+				if err := json.Unmarshal(body, &out); err != nil {
+					t.Fatal(err)
+				}
+				addr := want[meta.Id]
+				// "worker" stays the private address that placement and teardown dial.
+				if worker, _ := out["worker"].(string); worker != meta.Worker {
+					t.Errorf("instance %d: worker is %q, want the private address %q", meta.Id, worker, meta.Worker)
+				}
+				// Under the exact names each consumer reads.
+				for _, key := range []string{"hostname", "worker_public"} {
+					got, present := out[key]
+					if addr == "" && present {
+						t.Errorf("instance %d on the local daemon reported %s %v", meta.Id, key, got)
+					}
+					if addr != "" && got != addr {
+						t.Errorf("instance %d on worker %q: %s is %v, want %q", meta.Id, meta.Worker, key, got, addr)
+					}
+				}
+			}
+		})
 	}
 }
 

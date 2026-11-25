@@ -1224,6 +1224,10 @@ pub=$(jq -r .worker_public <<<"$PERSIST_META")
 port=$(jq -r .ports.socat <<<"$PERSIST_META")
 [[ -n "${PUBLIC[$PERSIST_WORKER]:-}" ]] || fail "instance $PERSIST_INST is on unknown worker '$PERSIST_WORKER'"
 [[ "$pub" == "${PUBLIC[$PERSIST_WORKER]}" ]] || fail "worker_public is '$pub', expected '${PUBLIC[$PERSIST_WORKER]}'"
+# The platform syncs a persistent instance from the schema state, not this
+# read, and resolves {{server}} from its "hostname".
+spub=$(challenge "$CH_PERSISTENT" | jq -r '.builds[0].instances[0].hostname // empty')
+[[ "$spub" == "$pub" ]] || fail "the schema state's hostname for instance $PERSIST_INST is '$spub', expected '$pub'"
 (( port >= PORT_LOW && port <= PORT_HIGH )) || fail "port $port is outside CORK_PORTS $PORT_LOW-$PORT_HIGH"
 assert_on_worker "$PERSIST_WORKER" "$PERSIST_META"
 retry 30 "the socat service at $pub:$port" tcp_says "$pub" "$port" '' 'openssl aes-256-cbc'

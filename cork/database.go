@@ -855,6 +855,7 @@ func (m *Manager) dumpChallenge(challenge ChallengeId) (*ChallengeMetadata, erro
 			m.log.errorf("failed to select instances for '%s/%d': %s", challenge, bMeta.Id, err)
 			return nil, err
 		}
+		m.resolvePublicAddr(bMeta.Instances...)
 		meta.Builds[j] = bMeta
 	}
 	return meta, nil
