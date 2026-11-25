@@ -5,6 +5,58 @@ All notable changes to this project are documented in this file.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] — 2026-11-25
+
+### Added
+
+**Preloading** ([#55](https://github.com/CyLabAcademy/cork/pull/55)).
+`cork preload-add <schema>` pulls every image a schema launches onto every
+worker ahead of time, including workers added later, and follows redeploys, so
+launches skip the cold pull. While a schema is preloaded, corkd removes its
+superseded images, not docker-reaper; an image still in use is tagged
+`<repo>:stale-<tag>` rather than force-deleted. `preload-list` shows progress
+and `preload-remove` ends it. Preloaded workers need room for the set plus one
+redeploy, and docker-reaper's eviction off. `CORK_PRELOAD_PULLS` (default 8)
+limits how many preload pulls run at once across the fleet.
+
+**A `- Difficulty:` line in `problem.md`** ([#62](https://github.com/CyLabAcademy/cork/pull/62))
+takes `easy`, `medium` or `hard`, and is reported as `difficulty` in challenge
+metadata and the schema state.
+
+**`gen-docker-certs.sh` re-issues single certificates** ([#54](https://github.com/CyLabAcademy/cork/pull/54))
+with `LEAVES`, leaving every other file untouched, and `ZOT_WORKER_CN` renames
+the shared worker registry identity, which is how to revoke it.
+
+### Changed
+
+**The Go module path is `github.com/CyLabAcademy/cork`** ([#60](https://github.com/CyLabAcademy/cork/pull/60)),
+following the repository's rename from `challenge-orchestrator`.
+
+### Fixed
+
+**`worker-down` survives a corkd restart** ([#63](https://github.com/CyLabAcademy/cork/pull/63)).
+A restart used to put every downed worker back into placement, including one
+downed ahead of termination.
+
+**Instances report their public address in `GET /schemas/<name>`, `GET /state`
+and the hand-over response** ([#75](https://github.com/CyLabAcademy/cork/pull/75)),
+not only in `GET /instances/<id>`. With `dynamic_public_hostname` on, persistent
+challenges lost their `{{server}}`.
+
+**A plain `COPY` produces root-owned files again** ([#68](https://github.com/CyLabAcademy/cork/pull/68)).
+Under BuildKit, files took the owner of the challenge tree on the build host.
+Existing images keep their owners until they are rebuilt.
+
+### Upgrading
+
+- The database migrates in place: `workers.downsince`, `challenges.difficulty`
+  and a `preloads` table.
+- Sync each platform challenge server that has `dynamic_public_hostname` on,
+  so persistent instances pick up `hostname`. No rebuild is needed.
+- A 1.3.0 corkd doesn't record `worker-add`, so after rolling back and forward
+  again, a worker that was down before the rollback comes back down.
+  `worker-add` clears it.
+
 ## [1.3.0] — 2026-09-27
 
 ### Fixed
@@ -420,6 +472,7 @@ fallback goes, a build plane needs both.
 4. A single-host deployment needs no build plane: leave `CORK_BUILD_PLANE` unset
    and `corkd` builds on its own docker daemon, as cmgr did.
 
+[1.4.0]: https://github.com/CyLabAcademy/cork/releases/tag/v1.4.0
 [1.3.0]: https://github.com/CyLabAcademy/cork/releases/tag/v1.3.0
 [1.2.1]: https://github.com/CyLabAcademy/cork/releases/tag/v1.2.1
 [1.2.0]: https://github.com/CyLabAcademy/cork/releases/tag/v1.2.0
