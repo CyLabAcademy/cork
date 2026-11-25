@@ -515,6 +515,15 @@ definitions:
         format: int64
       network:
         type: string
+      worker:
+        type: string
+        description: "The private address of the worker the instance is on, for orchestration only. Absent on the local daemon."
+      worker_public:
+        type: string
+        description: "The address a player connects to: the worker's public address, else its private one. Resolved at read time, never stored. Absent on the local daemon."
+      hostname:
+        type: string
+        description: "worker_public again, under the key the platform resolves {{server}} and {{http_base}} from. Present wherever worker_public is."
   BuildChallengeRequest:
     type: object
     properties:

@@ -368,14 +368,12 @@ type InstanceMetadata struct {
 	// WorkerPublic is the worker's player-facing address (IP or hostname) —
 	// what consumers should hand to users, since Worker is the private
 	// orchestration address. Resolved from the worker registry at read time
-	// (GetInstanceMetadata), never stored; falls back to Worker when the
+	// (resolvePublicAddr), never stored; falls back to Worker when the
 	// worker has no public address configured.
 	WorkerPublic string `json:"worker_public,omitempty" db:"-"`
 	// Hostname is WorkerPublic again, under the key the picoCTF platform
-	// reads it by: with a challenge server's dynamic_public_hostname set, it
-	// stores the whole launch response and looks up "hostname" to resolve the
-	// {{server}} and {{http_base}} tokens in a challenge description. Same
-	// value, same resolution, so the two cannot disagree.
+	// resolves {{server}} and {{http_base}} from, in the launch response and
+	// the schema state alike. Same value, same resolution.
 	Hostname string `json:"hostname,omitempty" db:"-"`
 }
 

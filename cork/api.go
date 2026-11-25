@@ -912,6 +912,7 @@ func (m *Manager) GetSchemaState(name string) ([]*ChallengeMetadata, error) {
 		if err != nil {
 			return nil, err
 		}
+		m.resolvePublicAddr(build.Instances...)
 
 		if challenge != nil && challenge.Id != build.Challenge {
 			challenges = append(challenges, challenge)
@@ -949,13 +950,20 @@ func (m *Manager) GetInstanceMetadata(instance InstanceId) (*InstanceMetadata, e
 	if err != nil {
 		return nil, err
 	}
-	// Resolve the player-facing address at read time so a worker's public
-	// address can be corrected by re-adding it, without touching instances.
-	if iMeta.Worker != "" {
-		iMeta.WorkerPublic = m.workerPublicAddr(iMeta.Worker)
-		iMeta.Hostname = iMeta.WorkerPublic
-	}
+	m.resolvePublicAddr(iMeta)
 	return iMeta, nil
+}
+
+// resolvePublicAddr fills in the player-facing address of instances on a
+// worker. Resolved at read time, so re-adding a worker corrects the next read;
+// every read that hands instances to a consumer must call this.
+func (m *Manager) resolvePublicAddr(instances ...*InstanceMetadata) {
+	for _, iMeta := range instances {
+		if iMeta.Worker != "" {
+			iMeta.WorkerPublic = m.workerPublicAddr(iMeta.Worker)
+			iMeta.Hostname = iMeta.WorkerPublic
+		}
+	}
 }
 
 func (m *Manager) DumpState(challenges []ChallengeId) ([]*ChallengeMetadata, error) {
